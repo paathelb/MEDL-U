@@ -1,0 +1,155 @@
+---
+data_root:       './data/kitti_detect'
+home_path: '/home/hpaat/my_exp/MTrans-evidential'
+val_link_path: '/home/hpaat/pcdet/data/nuscenes/kitti_ver/val/val_link.txt'
+experiment_name: "Ensemble/v20_pseudolabel_gen"
+init_checkpoint: null
+random_seed: 7489 #7489                                         
+DEBUG: false
+gen_label: true                                                   # Set this to "true" for pseudo-label generation. Note that the best_model.pt should be saved in ckpt folder
+label_dir: pseudo_label_ensemble_v20                              # Indicate path for pseudo
+dataset: KITTI   
+dist: false                                                       # added/changed/modified by Helbert PAAT  
+is_dp: false                                                      # added/changed/modified by Helbert PAAT  
+prog_metric_dir: './output/Ensemble/v20_pseudolabel_gen/training_hist.txt'    
+gen_pseudo_from_external: false
+gen_pseudo_from_external_path: null
+save_det_annos: true          # pseudo
+
+TRAIN_CONFIG:
+  optimizer: Adam
+  lr: 0.60e-4
+  epochs: 300                           # Changes made by Helbert
+  init_epochs: 300                      # epochs for initial training
+  epochs_per_episode: 5
+  output_root: './output'
+  warmup_rate: 0.01
+  epoches_per_eval: 5 #1                # Changes made by Helbert
+  ckpt_save_interval: 20
+  val_see_perf_limit: 2000
+  eval_begin: 100                       # 100       # 550     Changes made by Helbert
+
+DATASET_CONFIG:
+  TRAIN_SET:
+    split: 'train'
+    classes: ['Car']
+    min_points: 0
+    out_img_size: 112
+    out_cloud_size: 512
+    labeled_cnt: 500
+    partial_frames: 0                   # change to 0 for pseudo-label gen of training    # originally 500 # modified/changed by Helbert PAAT
+    load_calib: true
+    mask_ratio: [0.0, 0.95]
+    box2d_augmentation: false
+    pc_aug_btcdet: false 
+
+  VAL_SET:
+    split: 'val'
+    classes: ['Car']
+    min_points: 0
+    out_img_size: 112
+    out_cloud_size: 512
+    load_calib: true
+    mask_ratio: [0.0, 0.0]
+    test_rgb_file: rgb_detection_test.txt
+    pc_aug_btcdet: false 
+
+DATALOADER_CONFIG:
+  TRAIN_LOADER:
+    batch_size: 1                         # change to 1 for the pseudo-label generation in the end of MTrans
+    unsupervise_batch_size: 0             # change to 0 for the pseudo-label generation in the end of MTrans
+    num_workers: 8               
+    pin_memory: true
+    shuffle: false                        # For pseudo label generation, change to 'false'    # Set true for training
+    shuffle_for_unlabeled: false          # changed/added by Helbert PAAT
+    random_seed: 5421
+    drop_last: false
+
+  VAL_LOADER:
+    batch_size: 1                         # For pseudo label generation: change to 1
+    num_workers: 4
+    pin_memory: true
+    shuffle: false
+    random_seed: 5421
+    drop_last: false
+
+MODEL_CONFIG:
+  some_prints: false 
+  mask_and_jitter: true
+  sparse_query_rate: 4
+  patch_size: 7
+  box_drop: 0.1
+  visualize_attn: false
+  anchor: [4, 1.6, 1.5]
+  box_loss_weight: 5
+  evi_uncertainty:                                  # evidential parameters
+    evi_neurons: 512
+    setting: false                                  # Changes - Helbert
+    loss_weight: 2                                  # Changes - Helbert
+    evi_lambda: 0                                   # Changes - Helbert
+
+    evi_dim_only: false                             # Changes - Helbert
+    evi_loc_only: false                             # Changes - Helbert
+    evi_dimloc_only: false
+    high_unc_reg: false
+
+    shift_val: 2                                    # default 2
+    unc_act: 'softplus'                             # default softplus
+
+    comment: []                                     # evidential
+    separate_heads: false
+    yaw_loss: [[], 'wrapped_angle_l1', ['pi_over_2']]
+
+    use_unprocessed_gt: false
+    choose_unc_idx: []                              #[2,4,5]
+    conf_save_interval: 10
+
+    l_mse: false
+    unc_guided_iou_loss: false
+    unc_guided_loss: false
+    rescale_unc: false
+
+    nll_weight: [1,1,1,1,1,1,1]                     # default [1,1,1,1,1,1,1]
+
+  ensemble: true
+  ensemble_lambda: 0.50
+  ensemble_dropout: 0.10                            # 0.20 is typical
+  mcdo: false
+  dropout_rate: 0.10
+  decay: 0.000006
+    
+  multi_evi: false                                  # Changes - Helbert
+  decouple_iou: false                               # Changes - Helbert
+  laplace_uncertainty: 
+    setting: false                                  # Changes - Helbert
+    lambda_: 0.50
+    multi_unc: true
+
+  inc_lbox: true
+  inc_lseg: true
+  inc_ldepth: true
+  inc_lconf: true
+  inc_ldir: true                                    # evidential
+
+  # POINTNET:
+  #   global_feat: true
+  #   feature_transform: true
+
+  # PSPNET:
+  #   backbone: 'resnet18'
+  #   psp_channels: 128
+  #   bins: [1, 2, 3, 6]
+
+  POINT_ATTENTION:
+    use_cls_token: true
+    fore_attn: false
+    num_layers: 4
+    pos_embedding: 'SIN'              # [MLP, SIN, NO]
+    fuse_method: 'CAT'                # [ADD, CAT, GATE]
+    input_img_channel: 512
+    input_pts_channel: 512
+    position_embedding_channel: 512
+    hidden_size: 768
+    num_heads: 12
+    dropout_rate: 0.2
+    intermediate_size: 1024
