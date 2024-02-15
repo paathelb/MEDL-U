@@ -751,47 +751,6 @@ def main(rank, num_gpus, cfg, cfg_path):
 
     # Initially train with the training dataset. Set unlabeled_training_set to None.
     run.run(loader_builder, training_set, None, validation_set, start_epoch, cfg, train_cfg, loader_cfg, temp_cfg, model, optim, scheduler, counter, histo_counter, writer, rank, num_gpus, init_run=True)
-    
-    import pdb; pdb.set_trace() 
-    episodes = 30
-    uncertainty_type = 'conf'
-    for episode_cnt in range(episodes):
-        # Use the trained model to predict for the entire training dataset      # TODO loss_weight of 1.0 for those labeled dataset
-        # NOTE gen_pseudolabel set to True to get ALL training set
-        training_set_for_pred = dataset(data_root, dataset_cfg.TRAIN_SET, gen_pseudolabel=True, nusc=nusc)
-        unlabeled_training_set, uncertaintys = run.predict(cfg, loader_builder, model, training_set_for_pred, loader_cfg, 
-                                                           counter, histo_counter, rank, num_gpus, writer, optim, scheduler,
-                                                           uncertainty_type = uncertainty_type) 
-
-        # Use the trained model to predict for the unlabeled dataset
-        # unlabeled_training_set, uncertaintys = run.predict(cfg, loader_builder, model, unlabeled_training_set, loader_cfg, 
-        #                                                    counter, histo_counter, rank, num_gpus, writer, optim, scheduler,
-        #                                                    uncertainty_type = uncertainty_type)                                 # NOTE Output the uncertainties in the order of the objects, NOT shuffled  
-        #        
-        assert len(uncertaintys) == len(unlabeled_training_set), "len(uncertaintys) must equal len(unlabeled_training_set)"
-        
-        # Define the loss weights using the output uncertaintys of the model and normalize across the entire unlabeled training set
-        loss_weight = uncertaintys.cpu().clone().detach().reshape(-1)
-        
-        import pdb; pdb.set_trace() 
-        min_val = 1e-5
-        if uncertainty_type != 'conf' or uncertainty_type == 'gt_iou': loss_weight = 1 / (loss_weight + min_val)                # If conf, loss_weight should be uncertaintys
-        loss_weight = loss_weight/sum(loss_weight)
-
-        ignore_uncertainty = False
-        if ignore_uncertainty:
-            loss_weight = torch.tensor(len(loss_weight) * [1.0])
-            loss_weight = loss_weight/sum(loss_weight)
-        
-        # Update unlabeled_training_set object weights. 
-        unlabeled_training_set.update_weights(loss_weight)
-
-        # loss = torch.tensor(n, 1) # n number of object
-        # weighted_loss = weight * loss
-        # weighted_loss = torch.sum(loss) / torch.sum(weighted_loss) * weighted_loss
-
-        # Train using the combined dataset --> Just make the unlabeled dataset not none
-        run.run(loader_builder, training_set, unlabeled_training_set, validation_set, start_epoch, cfg, train_cfg, loader_cfg, temp_cfg, model, optim, scheduler, counter, histo_counter, writer, rank, num_gpus, episode_num=episode_cnt) 
 
     writer.flush()
     writer.close()

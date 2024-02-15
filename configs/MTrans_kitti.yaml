@@ -1,20 +1,20 @@
 ---
-data_root:       './data/kitti_detect'
-home_path: '/home/hpaat/my_exp/MTrans-evidential'
-val_link_path: '/home/hpaat/pcdet/data/nuscenes/kitti_ver/val/val_link.txt'
-experiment_name: "Ensemble/v20_pseudolabel_gen"
+data_root:      './data/kitti_detect'
+home_path:      '/home/hpaat/my_exp/MTrans-evidential'
+val_link_path:  '/home/hpaat/pcdet/data/nuscenes/kitti_ver/val/val_link.txt'
+experiment_name: "main"
 init_checkpoint: null
-random_seed: 7489 #7489                                         
+random_seed: 7489                 #7489                                         
 DEBUG: false
-gen_label: true                                                   # Set this to "true" for pseudo-label generation. Note that the best_model.pt should be saved in ckpt folder
-label_dir: pseudo_label_ensemble_v20                              # Indicate path for pseudo
+gen_label: false                                                  # Set this to "true" for pseudo-label generation. Note that the best_model.pt should be saved in ckpt folder
+label_dir: pseudo_label_ensemble_v20                              # Indicate path name for pseudolabels if gen_label is true
 dataset: KITTI   
 dist: false                                                       # added/changed/modified by Helbert PAAT  
 is_dp: false                                                      # added/changed/modified by Helbert PAAT  
-prog_metric_dir: './output/Ensemble/v20_pseudolabel_gen/training_hist.txt'    
+prog_metric_dir: './output/main/training_hist.txt'    
 gen_pseudo_from_external: false
 gen_pseudo_from_external_path: null
-save_det_annos: true          # pseudo
+save_det_annos: true          # pseudo, for KITTI direct evaluation
 
 TRAIN_CONFIG:
   optimizer: Adam
@@ -24,7 +24,7 @@ TRAIN_CONFIG:
   epochs_per_episode: 5
   output_root: './output'
   warmup_rate: 0.01
-  epoches_per_eval: 5 #1                # Changes made by Helbert
+  epoches_per_eval: 5   #1              # Changes made by Helbert
   ckpt_save_interval: 20
   val_see_perf_limit: 2000
   eval_begin: 100                       # 100       # 550     Changes made by Helbert
@@ -56,17 +56,17 @@ DATASET_CONFIG:
 
 DATALOADER_CONFIG:
   TRAIN_LOADER:
-    batch_size: 1                         # change to 1 for the pseudo-label generation in the end of MTrans
+    batch_size: 5                         # change to 1 for the pseudo-label generation in the end of MTrans
     unsupervise_batch_size: 0             # change to 0 for the pseudo-label generation in the end of MTrans
     num_workers: 8               
     pin_memory: true
-    shuffle: false                        # For pseudo label generation, change to 'false'    # Set true for training
+    shuffle: true                        # For pseudo label generation, change to 'false'    # Set true for training
     shuffle_for_unlabeled: false          # changed/added by Helbert PAAT
     random_seed: 5421
     drop_last: false
 
   VAL_LOADER:
-    batch_size: 1                         # For pseudo label generation: change to 1
+    batch_size: 5                         # For pseudo label generation: change to 1
     num_workers: 4
     pin_memory: true
     shuffle: false
@@ -84,7 +84,7 @@ MODEL_CONFIG:
   box_loss_weight: 5
   evi_uncertainty:                                  # evidential parameters
     evi_neurons: 512
-    setting: false                                  # Changes - Helbert
+    setting: true                                  # Changes - Helbert
     loss_weight: 2                                  # Changes - Helbert
     evi_lambda: 0                                   # Changes - Helbert
 
@@ -106,16 +106,16 @@ MODEL_CONFIG:
 
     l_mse: false
     unc_guided_iou_loss: false
-    unc_guided_loss: false
+    unc_guided_loss: true
     rescale_unc: false
 
     nll_weight: [1,1,1,1,1,1,1]                     # default [1,1,1,1,1,1,1]
 
-  ensemble: true
+  ensemble: false
   ensemble_lambda: 0.50
-  ensemble_dropout: 0.10                            # 0.20 is typical
+  ensemble_dropout: 0.30                            # 0.20 is typical
   mcdo: false
-  dropout_rate: 0.10
+  dropout_rate: 0.40
   decay: 0.000006
     
   multi_evi: false                                  # Changes - Helbert
