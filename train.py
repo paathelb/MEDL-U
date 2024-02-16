@@ -449,201 +449,10 @@ def get_boxes_lidar_nuscenes_format(line, frames, lbl):
     return np.concatenate((box.center, box.wlh[[1,0,2]], np.array([quaternion_yaw(box.orientation)]), box.velocity[:2]), axis=0).reshape(-1,9)    # Note: nuscenes_boxes_lidar_pred is lwh but nuscenes_lidar is wlh
 
 
-
-# def eval(cfg, model, validation_loader, counter, histo_counter, epoch, writer, rank, lbl):
-#     #cfg
-#     home_path = '/home/hpaat/my_exp/MTrans-evidential'
-#     data_path = '/data/kitti_detect'
-#     val_link_path = '/home/hpaat/pcdet/data/nuscenes/kitti_ver/val/val_link.txt'
-#     nusc = cfg.dataset == 'NUSCENES'
-    
-#     if nusc:
-#         nuscenes = NuScenes(dataroot='/home/hpaat/pcdet/data/nuscenes/v1.0-trainval', version='v1.0-trainval')
-#         id_to_token = {}
-#         with open(val_link_path) as f:
-#             val_link = f.readlines()
-#         for line in val_link:
-#             token, id = line.split(',')
-#             id_to_token[id.strip()] = token 
-#     else:
-#         id_to_token = None
-
-#     model.eval()
-#     process_bar = tqdm(validation_loader, desc='Evaluate model')
-#     counter.reset()
-#     histo_counter.reset()
-#     all_nuscenes_boxes = {}
-#     uncertaintys = torch.Tensor([])
-#     frame_list = []
-
-#     with torch.no_grad():
-#         det_annos = []
-
-#         # Modified/Changed/Added by HP
-#         # Get access to train/val IDs
-#         if not nusc:
-#             with open(home_path + data_path + '/ImageSets/' + lbl + '.txt') as f: # change this to train.txt if validation loader uses split="train"
-#                 id_list = f.readlines()
-#             id_list = [id.strip() for id in id_list]
-#             id_to_lidar_path = None
-#         elif nusc and lbl=='val': 
-#             id_list = [f"{id:06d}" for id in range(6019)]
-            
-#             id_to_lidar_path = {}
-#             for id in id_list:
-#                 sample_token = id_to_token[id]
-#                 sample = nuscenes.get('sample', sample_token)
-#                 lidar_token = sample['data']['LIDAR_TOP']
-#                 sd_record_lid = nuscenes.get('sample_data', lidar_token)
-#                 filename_lid_full = sd_record_lid['filename']
-#                 id_to_lidar_path[id] = filename_lid_full.split('/')[-1] 
-        
-#         ######################################################################################################################################################
-        
-#         for data in process_bar:
-#             data = EasyDict(data)
-
-#             data = move_to_cuda(data, 'cuda', rank)
-#             pred_dict = model(data)
-#             if cfg.dist or cfg.is_dp: 
-#                 loss_dict, loss, iou3d_histo, loss_box = model.module.get_loss(pred_dict, data, rank)   # model.get_loss(pred_dict, data)
-#             else:
-#                 loss_dict, loss, iou3d_histo, loss_box = model.get_loss(pred_dict, data, rank)          # model.get_loss(pred_dict, data)
-#             var = pred_dict['conf'].view(-1)
-#             uncertaintys = torch.cat([uncertaintys, var.detach().cpu()], dim=0)
-#             frame_list.extend(data['frames'])
-
-#             if cfg.dataset=='KITTI':
-
-#                 # Get the label as what is printed on the txt file
-#                 if lbl=="train":
-#                     label, frames = format_kitti_labels(pred_dict, data, with_score=(validation_loader.dataset.cfg.split=='train'), nusc=True)
-#                 elif lbl=="val":
-#                     label, frames = format_kitti_labels(pred_dict, data, with_score=(validation_loader.dataset.cfg.split=='val'), nusc=True)
-                                
-#                 boxes_lidar_nusc = get_boxes_lidar_nuscenes_format(label, frames, lbl) if nusc else None
-
-#                 # Define annos variable
-#                 annos = get_annos_dict(label, frames, pred_dict, nusc, id_to_token, id_to_lidar_path, boxes_lidar_nusc)
-                
-#                 if nusc:
-#                     if len(det_annos) == 0 or data.frames[0] != det_annos[-1]["frame_id_kitti_ver"]:
-#                         det_annos.append(annos)                     
-#                     else: 
-#                         # No need to include additional element to det_annos (just append to the last element)
-#                         det_annos[-1]['name'] = np.concatenate((det_annos[-1]["name"], annos['name']), axis=0)
-#                         det_annos[-1]['score'] = np.concatenate((det_annos[-1]["score"], annos['score']), axis=0)
-#                         det_annos[-1]['boxes_lidar'] = np.concatenate((det_annos[-1]["boxes_lidar"], annos['boxes_lidar']), axis=0) 
-#                         det_annos[-1]['pred_labels'] = np.concatenate((det_annos[-1]["pred_labels"], annos['pred_labels']), axis=0)
-                        
-#                     while det_annos[-1]["frame_id_kitti_ver"] != id_list[len(det_annos)-1]:
-#                         if cfg.gen_label:
-#                             if not path.exists(f'{cfg.label_dir}'):
-#                                 makedirs(f'{cfg.label_dir}')
-#                             with open(path.join(f'{cfg.label_dir}', f'{id_list[len(det_annos)-1]}.txt'), 'a') as f:
-#                                 #l = label[i]
-#                                 # score = float(l.split(' ')[-1])       # [optional]: discard 3D predictions with low confidence
-#                                 # if score<0.05:
-#                                 #     continue
-#                                 f.write('')  
-                            
-#                         num_samples = 0
-#                         no_content_id = id_list[len(det_annos)-1]
-#                         det_annos.append({
-#                             'name': np.zeros(num_samples), 'score': np.zeros(num_samples), 
-#                             'boxes_lidar': np.zeros([num_samples, 7]), 'pred_labels': np.zeros(num_samples),
-#                             'frame_id_kitti_ver': no_content_id, 'frame_id': id_to_lidar_path[no_content_id],
-#                             'metadata': {'token': id_to_token[no_content_id]}
-#                         })
-#                         det_annos[-1], det_annos[-2] = det_annos[-2], det_annos[-1]
-
-#                 else:
-#                     if len(det_annos) == 0 or data.frames[0] != det_annos[-1]["frame_id"]:
-#                         det_annos.append(annos)                     
-#                     else: 
-#                         # No need to include additional element to det_annos (just append to the last element)
-#                         det_annos[-1]['name'] = np.concatenate((det_annos[-1]["name"], annos['name']), axis=0)
-#                         det_annos[-1]['truncated'] = np.concatenate((det_annos[-1]["truncated"], annos['truncated']), axis=0)  
-#                         det_annos[-1]['occluded'] =  np.concatenate((det_annos[-1]["occluded"], annos['occluded']), axis=0) 
-#                         det_annos[-1]['alpha'] = np.concatenate((det_annos[-1]["alpha"], annos['alpha']), axis=0)  
-#                         det_annos[-1]['bbox'] = np.concatenate((det_annos[-1]["bbox"], annos['bbox']), axis=0) 
-#                         det_annos[-1]['dimensions'] = np.concatenate((det_annos[-1]["dimensions"], annos['dimensions']), axis=0) 
-#                         det_annos[-1]['location'] = np.concatenate((det_annos[-1]["location"], annos['location']), axis=0) 
-#                         det_annos[-1]['rotation_y'] = np.concatenate((det_annos[-1]["rotation_y"], annos['rotation_y']), axis=0) 
-#                         det_annos[-1]['score'] = np.concatenate((det_annos[-1]["score"], annos['score']), axis=0) 
-#                         det_annos[-1]['boxes_lidar'] = np.concatenate((det_annos[-1]["boxes_lidar"], annos['boxes_lidar']), axis=0)
-                
-#                     while det_annos[-1]["frame_id"] != id_list[len(det_annos)-1]:
-#                         if cfg.gen_label:
-#                             if not path.exists(f'{cfg.label_dir}'):
-#                                 makedirs(f'{cfg.label_dir}')
-#                             with open(path.join(f'{cfg.label_dir}', f'{id_list[len(det_annos)-1]}.txt'), 'a') as f:
-#                                 #l = label[i]
-#                                 # score = float(l.split(' ')[-1])       # [optional]: discard 3D predictions with low confidence
-#                                 # if score<0.05:
-#                                 #     continue
-#                                 f.write('')  
-                            
-#                         num_samples = 0
-#                         det_annos.append({
-#                             'name': np.zeros(num_samples), 'truncated': np.zeros(num_samples),
-#                             'occluded': np.zeros(num_samples), 'alpha': np.zeros(num_samples),
-#                             'bbox': np.zeros([num_samples, 4]), 'dimensions': np.zeros([num_samples, 3]),
-#                             'location': np.zeros([num_samples, 3]), 'rotation_y': np.zeros(num_samples),
-#                             'score': np.zeros(num_samples), 'boxes_lidar': np.zeros([num_samples, 7]),
-#                             'frame_id': id_list[len(det_annos)-1]
-#                         })
-#                         det_annos[-1], det_annos[-2] = det_annos[-2], det_annos[-1]
-                    
-#                 ################################################################################################################################################ 
-#                 if cfg.gen_label:
-#                     if not path.exists(f'{cfg.label_dir}'):
-#                         makedirs(f'{cfg.label_dir}')
-#                     for i, fr in enumerate(frames):
-#                         with open(path.join(f'{cfg.label_dir}', f'{fr}.txt'), 'a') as f:
-#                             l = label[i]
-#                             f.write(l+'\n')  
-    
-#             # Statistics
-#             counter.update(loss_dict)
-#             histo_counter.update(iou3d_histo)
-
-#             pbar_text = get_pbar_text(counter, f'Eval')
-#             process_bar.set_description(pbar_text)
-
-#         # If the final frames of nusc have no content
-#         if nusc:
-#             if len(det_annos) != len(id_list):
-#                 last_id_with_content = int(det_annos[-1]['frame_id_kitti_ver']) # 6015
-#                 while last_id_with_content < len(id_list)-1:
-#                     last_id_with_content = last_id_with_content+1
-#                     no_content_id = f"{last_id_with_content:06d}"
-#                     det_annos.append({
-#                             'name': np.zeros(num_samples), 'score': np.zeros(num_samples), 
-#                             'boxes_lidar': np.zeros([num_samples, 7]), 'pred_labels': np.zeros(num_samples),
-#                             'frame_id_kitti_ver': no_content_id, 'frame_id': id_to_lidar_path[no_content_id],
-#                             'metadata': {'token': id_to_token[no_content_id]}
-#                         })
-        
-#         # Save det_annos for external evaluation in pcdet
-#         save_det_annos = True
-#         if save_det_annos:
-#             with open(home_path + '/output/' + cfg.experiment_name + '/det_annos_' + str(epoch) + '_' + lbl + '.pkl', 'wb') as f: 
-#                 pickle.dump(det_annos, f)
-
-#         stats = counter.average(None, group_by_description=True)
-#         for group in stats.keys():
-#             writer.add_scalars(f'Eval/{group}', stats[group], epoch)
-#         writer.add_histogram('Eval/iou_distribution', histo_counter.get_values(), epoch)
-        
-#         # metric for saving best checkpoint
-#         score = (counter.average(['iou3d'])['iou3d'])
-
-#     return score
-
 def main(rank, num_gpus, cfg, cfg_path):
-    # import pdb; pdb.set_trace() 
     torch.cuda.set_device(rank)
+
+    # The DDP training is not working.
     if cfg.dist:
         torch.distributed.init_process_group(backend='nccl', rank=rank, world_size=num_gpus, init_method='env://')
 
@@ -657,7 +466,7 @@ def main(rank, num_gpus, cfg, cfg_path):
     counter = ScoreCounter()
     histo_counter = HistoCounter()
     
-    # Save config file
+    # Save config file in the output path
     shutil.copyfile(cfg_path, os.path.join(output_path, 'MTrans_kitti_' + str(datetime.now()) + '.yaml'))
 
     # Config files
@@ -669,19 +478,19 @@ def main(rank, num_gpus, cfg, cfg_path):
         nusc = False
         dataset = KittiDetectionDataset
         loader_builder = build_kitti_loader
-    elif cfg.dataset == 'NUSCENES':
+    elif cfg.dataset == 'NUSCENES':     # Not yet working. Will be updated soon.
         nusc = True
         dataset = KittiDetectionDataset
         loader_builder = build_kitti_loader
     else:
         raise RuntimeError
     
-    # Training Set
+    # Training Set  (Only Limited Training Frames)
     training_set = dataset(data_root, dataset_cfg.TRAIN_SET, labeled=True, nusc=nusc)
     training_loader = loader_builder(training_set, cfg, loader_cfg.TRAIN_LOADER, rank, num_gpus)
     train_length = len(training_loader)
 
-    # Training Set for Label Generation (includes complete training set)
+    # Training Set for Label Generation (includes all data in the training set)
     training_set_for_gen_label = dataset(data_root, dataset_cfg.TRAIN_SET, gen_pseudolabel=cfg.gen_label, nusc=nusc)
     training_loader_for_gen_label = loader_builder(training_set_for_gen_label, cfg, loader_cfg.TRAIN_LOADER, rank, num_gpus)
 
@@ -702,7 +511,7 @@ def main(rank, num_gpus, cfg, cfg_path):
     #     unlabeled_training_loader = None
 
     temp_cfg = None
-    unlabeled_training_set = dataset(data_root, dataset_cfg.TRAIN_SET, labeled=False, nusc=nusc)
+    unlabeled_training_set = dataset(data_root, dataset_cfg.TRAIN_SET, labeled=False, nusc=nusc)    # TODO remove
     
     # Validation Set
     validation_set = dataset(data_root, dataset_cfg.VAL_SET, nusc=nusc)
@@ -711,10 +520,10 @@ def main(rank, num_gpus, cfg, cfg_path):
     # Build the Model
     model = MTrans(cfg.MODEL_CONFIG)
     model.cuda(rank)
-    if cfg.dist:
+    if cfg.dist:    # ignore
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, find_unused_parameters=True, device_ids=[rank])
-    elif cfg.is_dp:
+    elif cfg.is_dp: # ignore
         assert cfg.dist is False
         model = torch.nn.DataParallel(model)
 
@@ -730,23 +539,25 @@ def main(rank, num_gpus, cfg, cfg_path):
     scheduler.step()
     
     # Load checkpoint (if any)
-    start_epoch=0
-
     if cfg.init_checkpoint is not None:
         print(f"Loading checkpoint at: {cfg.init_checkpoint}")
         start_epoch = load_checkpoint(f'{cfg.init_checkpoint}', model, optim, scheduler) + 1
     elif path.exists(f'{cfg.TRAIN_CONFIG.output_root}/{cfg.experiment_name}/ckpt/best_model.pt'):       # But if best_model.pt exists
         print("Loading best checkpoints...")
         start_epoch = load_checkpoint(f'{cfg.TRAIN_CONFIG.output_root}/{cfg.experiment_name}/ckpt/best_model.pt', model, optim, scheduler) + 1
+    else:
+        start_epoch=0
+        
     run = runner(cfg)
 
-    # NOTE eval function has setting to generate pseudo labels
-    if cfg.gen_label:                           # start_epoch > 0:
-        # pass
-        training_score = run.eval(cfg, model, training_loader_for_gen_label, counter, histo_counter, start_epoch-1, writer, rank, lbl="train", gen_label_prints=True)     # Changes made by Helbert      # Just for saving training pseudolabels
+    # NOTE eval function has function to generate the pseudo labels
+    if cfg.gen_label:   # evaluate and generate the pseudolabels
+        # Generate pseudo labels for entire training set
+        training_score = run.eval(cfg, model, training_loader_for_gen_label, counter, histo_counter, start_epoch-1, writer, rank, lbl="train", gen_label_prints=True)     # Changes made by Helbert
         import pdb; pdb.set_trace() 
-        best_score = run.eval(cfg, model, validation_loader, counter, histo_counter, start_epoch-1, writer, rank, lbl="val", gen_label_prints=True)                       # Save det_annos & pseudolabels  
-        print("For label generation, run only until this point")
+        # Generate pseudo labels for entire validation set
+        best_score = run.eval(cfg, model, validation_loader, counter, histo_counter, start_epoch-1, writer, rank, lbl="val", gen_label_prints=True)                       # Save val det_annos & pseudolabels  
+        print("For label generation using pretrained model, run only until this point")
         import pdb; pdb.set_trace() 
 
     # Initially train with the training dataset. Set unlabeled_training_set to None.
@@ -754,7 +565,8 @@ def main(rank, num_gpus, cfg, cfg_path):
 
     writer.flush()
     writer.close()
-    if cfg.dist:
+
+    if cfg.dist:    # ignore
         torch.distributed.destroy_process_group()
 
 if __name__ == '__main__':
@@ -775,9 +587,9 @@ if __name__ == '__main__':
     print(cfg.experiment_name)
     print("==========================")
 
-    if cfg.dist:
+    if cfg.dist:        # ignore
         torch.multiprocessing.spawn(main, args=(num_gpus, cfg, args.cfg_file), nprocs=num_gpus, join=True) # modified/changed by Helbert PAAT to include multi-gpu feature
-    elif cfg.is_dp:
+    elif cfg.is_dp:     # ignore
         assert cfg.dist is False
         main(0, num_gpus, cfg, args.cfg_file)
     else:

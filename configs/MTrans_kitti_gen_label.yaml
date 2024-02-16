@@ -6,8 +6,8 @@ experiment_name: "main"
 init_checkpoint: null
 random_seed: 7489                 #7489                                         
 DEBUG: false
-gen_label: false                                                  # Set this to "true" for pseudo-label generation. Note that the best_model.pt should be saved in ckpt folder
-label_dir: pseudo_label_main                          # Indicate path name for pseudolabels if gen_label is true
+gen_label: true                                                  # Set this to "true" for pseudo-label generation. Note that the best_model.pt should be saved in ckpt folder
+label_dir: pseudo_label_main                             # Indicate path name for pseudolabels if gen_label is true
 dataset: KITTI   
 dist: false                                                       # added/changed/modified by Helbert PAAT  
 is_dp: false                                                      # added/changed/modified by Helbert PAAT  
@@ -56,17 +56,17 @@ DATASET_CONFIG:
 
 DATALOADER_CONFIG:
   TRAIN_LOADER:
-    batch_size: 5                         # change to 1 for the pseudo-label generation in the end of MTrans
+    batch_size: 1                         # change to 1 for the pseudo-label generation in the end of MTrans
     unsupervise_batch_size: 0             # change to 0 for the pseudo-label generation in the end of MTrans
     num_workers: 8               
     pin_memory: true
-    shuffle: true                        # For pseudo label generation, change to 'false'    # Set true for training
+    shuffle: false                        # For pseudo label generation, change to 'false'    # Set true for training
     shuffle_for_unlabeled: false          # changed/added by Helbert PAAT
     random_seed: 5421
     drop_last: false
 
   VAL_LOADER:
-    batch_size: 5                         # For pseudo label generation: change to 1
+    batch_size: 1                         # For pseudo label generation: change to 1
     num_workers: 4
     pin_memory: true
     shuffle: false
