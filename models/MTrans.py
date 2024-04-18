@@ -651,11 +651,11 @@ class MTrans(nn.Module):
         else:
             loss_segment = self.get_weighted_loss(lseg, weights)
 
-        # Add Dice Loss to Loss Segment         # TODO What is dice loss?
-        segment_prob = segment_logits.softmax(dim=1)[:, 1, :]                                           # Bl x N        # TODO Probability of being classified as foreground?
-        inter = 2 * (segment_prob * (segment_gt==1)).sum(dim=-1) + 1e-6                                 # Bl            # TODO Intuition? 
-        uni = (segment_prob * (segment_gt != 2)).sum(dim=-1) + (segment_gt == 1).sum(dim=-1) + 1e-6     # Bl            # TODO Intuition? 
-        dice_loss = 1 - inter/uni                                                   # Bl                                # TODO Intuition? 
+        # Add Dice Loss to Loss Segment     
+        segment_prob = segment_logits.softmax(dim=1)[:, 1, :]                                           # Bl x N        # NOTE Probability of being classified as foreground
+        inter = 2 * (segment_prob * (segment_gt==1)).sum(dim=-1) + 1e-6                                 # Bl            #  Intuition? 
+        uni = (segment_prob * (segment_gt != 2)).sum(dim=-1) + (segment_gt == 1).sum(dim=-1) + 1e-6     # Bl            #  Intuition? 
+        dice_loss = 1 - inter/uni                                                   # Bl                                #  Intuition? 
 
         if self.unc_guided_loss:
             l_dice_unc = dice_loss.clone()
@@ -668,7 +668,7 @@ class MTrans(nn.Module):
         loss_segment = loss_segment + dice_loss                         
 
         # Metric: Segment IoU
-        segment_pred = segment_logits.argmax(dim=1) * (segment_gt != 2)             # Bl x N # TODO Why automatically classify mask as background?
+        segment_pred = segment_logits.argmax(dim=1) * (segment_gt != 2)             # Bl x N 
         intersection = (segment_pred * (segment_gt == 1)).sum(dim=1)                # Bl
         union = ((segment_pred + (segment_gt == 1)).bool()).sum(dim=1) + 1e-10      # Bl
 

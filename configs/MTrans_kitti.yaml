@@ -2,7 +2,7 @@
 data_root:      './data/kitti_detect'
 home_path:      '/home/hpaat/my_exp/MTrans-evidential'
 val_link_path:  '/home/hpaat/pcdet/data/nuscenes/kitti_ver/val/val_link.txt'
-experiment_name: "main"
+experiment_name: "DELETE"
 init_checkpoint: null
 random_seed: 7489                 #7489                                         
 DEBUG: false
@@ -11,7 +11,7 @@ label_dir: pseudo_label_main                          # Indicate path name for p
 dataset: KITTI   
 dist: false                                                       # added/changed/modified by Helbert PAAT  
 is_dp: false                                                      # added/changed/modified by Helbert PAAT  
-prog_metric_dir: './output/main/training_hist.txt'    
+prog_metric_dir: './output/DELETE/training_hist.txt'    
 gen_pseudo_from_external: false
 gen_pseudo_from_external_path: null
 save_det_annos: true          # pseudo, for KITTI direct evaluation

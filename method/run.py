@@ -456,7 +456,7 @@ class runner(torch.nn.Module):
 
         best_score = -9999
         for epoch in range(start_epoch, num_epochs):
-            if cfg.dist:
+            if cfg.dist:    # ignore this
                 training_loader.sampler.set_epoch(epoch)
                 unlabeled_training_loader.sampler.set_epoch(epoch)
 
@@ -512,7 +512,7 @@ class runner(torch.nn.Module):
 
         for data in process_bar:
             optim.zero_grad()
-            if unlabeled_training_loader is not None:
+            if unlabeled_training_loader is not None:   # Merge unlabeled and labeled data
                 try:
                     unlabeled_data = next(unlabeled_iter)
                 except StopIteration:
@@ -530,9 +530,9 @@ class runner(torch.nn.Module):
             else:
                 if self.evi_uncertainty:
                     loss_dict, loss, iou3d_histo, loss_box, iou3d_addl, evi_unc_addl, evi_unc_addl_epistemic, v_addl, alpha_addl, beta_addl, gt_boxes, pred_boxes = model.get_loss(pred_dict, data, rank, weights)
-                elif self.ensemble:
+                elif self.ensemble: # Deep Ensemble
                         loss_dict, loss, iou3d_histo, loss_box, iou3d_addl, gt_boxes, pred_boxes, var = model.get_loss(pred_dict, data, rank) 
-                elif self.mcdo:
+                elif self.mcdo:     # MC Dropout
                     loss_dict, loss, iou3d_histo, loss_box, iou3d_addl, gt_boxes, pred_boxes = model.get_loss(pred_dict, data, rank)   
                 else:        
                     loss_dict, loss, iou3d_histo, loss_box, iou3d_addl, gt_boxes, pred_boxes = model.get_loss(pred_dict, data, rank)  

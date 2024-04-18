@@ -20,8 +20,6 @@ To generate pseudolabels, make sure that the 'best_model.pt' is saved in the exp
 > python train.py --cfg_file configs/MTrans_kitti_gen_label.yaml
 
 ## References
-The IoU loss module is borrowed from "https://github.com/lilanxiao/Rotated_IoU". We thank the author for providing a neat implementation of the IoU loss.
-
 This work is based from MTrans ("https://github.com/Cliu2/MTrans"). We thank the authors for their open-source code. 
 
 ## TODO

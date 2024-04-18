@@ -450,9 +450,10 @@ def get_boxes_lidar_nuscenes_format(line, frames, lbl):
 
 
 def main(rank, num_gpus, cfg, cfg_path):
+    import pdb; pdb.set_trace()
     torch.cuda.set_device(rank)
 
-    # The DDP training is not working.
+    # NOTE The DDP training is not working.
     if cfg.dist:
         torch.distributed.init_process_group(backend='nccl', rank=rank, world_size=num_gpus, init_method='env://')
 
@@ -485,7 +486,7 @@ def main(rank, num_gpus, cfg, cfg_path):
     else:
         raise RuntimeError
     
-    # Training Set  (Only Limited Training Frames)
+    # Training Set  (Only Limited Training Frames with label)
     training_set = dataset(data_root, dataset_cfg.TRAIN_SET, labeled=True, nusc=nusc)
     training_loader = loader_builder(training_set, cfg, loader_cfg.TRAIN_LOADER, rank, num_gpus)
     train_length = len(training_loader)
@@ -517,13 +518,13 @@ def main(rank, num_gpus, cfg, cfg_path):
     validation_set = dataset(data_root, dataset_cfg.VAL_SET, nusc=nusc)
     validation_loader = loader_builder(validation_set, cfg, loader_cfg.VAL_LOADER, rank, num_gpus)
     
-    # Build the Model
+    # Build the Model based from MTrans
     model = MTrans(cfg.MODEL_CONFIG)
     model.cuda(rank)
-    if cfg.dist:    # ignore
+    if cfg.dist:    # ignore this
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, find_unused_parameters=True, device_ids=[rank])
-    elif cfg.is_dp: # ignore
+    elif cfg.is_dp: # ignore this
         assert cfg.dist is False
         model = torch.nn.DataParallel(model)
 
@@ -542,7 +543,7 @@ def main(rank, num_gpus, cfg, cfg_path):
     if cfg.init_checkpoint is not None:
         print(f"Loading checkpoint at: {cfg.init_checkpoint}")
         start_epoch = load_checkpoint(f'{cfg.init_checkpoint}', model, optim, scheduler) + 1
-    elif path.exists(f'{cfg.TRAIN_CONFIG.output_root}/{cfg.experiment_name}/ckpt/best_model.pt'):       # But if best_model.pt exists
+    elif path.exists(f'{cfg.TRAIN_CONFIG.output_root}/{cfg.experiment_name}/ckpt/best_model.pt'):     # Check if best_model.pt exists
         print("Loading best checkpoints...")
         start_epoch = load_checkpoint(f'{cfg.TRAIN_CONFIG.output_root}/{cfg.experiment_name}/ckpt/best_model.pt', model, optim, scheduler) + 1
     else:
