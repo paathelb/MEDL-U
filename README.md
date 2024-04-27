@@ -19,6 +19,9 @@ You can download the pretrained model here: [link](https://drive.google.com/file
 To generate pseudolabels, make sure that the 'best_model.pt' is saved in the experiment_name/ckpt folder. Simply run:
 > python train.py --cfg_file configs/MTrans_kitti_gen_label.yaml
 
+## Postprocess Uncertainties
+Details on the postprocessing of uncertainties and integration with KITTI infos and dbinfos files can be found here: /small_experiments/glenet_weights_statistics.ipynb
+
 ## References
 This work is based from MTrans ("https://github.com/Cliu2/MTrans"). We thank the authors for their open-source code. 
 
