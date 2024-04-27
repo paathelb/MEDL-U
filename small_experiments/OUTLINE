@@ -1,0 +1,25 @@
+EXPERIMENTS
+
+100.01
+    - replace first 500 frames pseudolabels with GT pseudolabels
+
+100.02
+    - replace one by one each box parameter of MTrans-evi TRAIN det_annos with VANILLA MTrans parameter
+
+100.03
+    - 3D surface plot
+
+100.04
+    - tSNE
+
+100.05
+    - precision-recall curve
+
+100.06
+    - from pcdet det_annos.pkl to visualization (3D box to image)
+
+100.07
+    - uncertainty evaluation
+
+100.08
+    - histogram
