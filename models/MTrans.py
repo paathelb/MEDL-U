@@ -616,6 +616,7 @@ class MTrans(nn.Module):
         return weighted_loss
 
     def get_loss(self, pred_dict, data_dict, rank, weights=None):
+        import pdb; pdb.set_trace()
 
         if weights is not None:
             if all(elem==1 for elem in weights):
@@ -684,17 +685,17 @@ class MTrans(nn.Module):
         gt_coords = pred_dict['gt_coords_3d']                                   # (B, N, 3) # sub_cloud
         pred_coords = pred_dict['pred_coords_3d']                               # (B, N, 3) # key_f3d passed into a downsampling head
         loss_mask = pred_dict['pred_foreground_logits'].argmax(dim=-1).float()  # B x N # ignore background # Based on key
-        loss_mask = (loss_mask) * (real_point_mask != 0)                        # B x N # ignore padding # TODO Why consider all items in batch?  # Why ignore padding?
+        loss_mask = (loss_mask) * (real_point_mask != 0)                        # B x N # ignore padding 
 
         criterion_depth = nn.SmoothL1Loss(reduction='none')
-        loss_depth = criterion_depth(pred_coords, gt_coords).sum(dim=-1)        # B x N # TODO Intuition?
+        loss_depth = criterion_depth(pred_coords, gt_coords).sum(dim=-1)        # B x N 
         loss_depth = loss_depth * loss_mask                                     # B x N
 
         # Balance mask/jitter/impact points
         l = 0
         l = l + (loss_depth * (real_point_mask == 1)).sum(dim=1) / (((real_point_mask == 1)*loss_mask).sum(dim=1) + 1e-6) * 0.1     # B # Real points # TODO Why multiply by 0.10?
         l = l + (loss_depth * (real_point_mask == 2)).sum(dim=1) / (((real_point_mask == 2)*loss_mask).sum(dim=1) + 1e-6)           # B # Mask points # No *0.1 # Bigger contribution to loss compared to real points
-        assert (real_point_mask != 3).all()                                     # TODO Why? What is the intuition? So we don't expect to have label 3 = jitter at all?
+        assert (real_point_mask != 3).all()                                     # Why? What is the intuition? So we don't expect to have label 3 = jitter at all?
         
         if self.unc_guided_loss:
             l_depth_unc = l.clone()
@@ -715,16 +716,17 @@ class MTrans(nn.Module):
 
 
         #  ----------------------------------------------------------------------------- 3. Box loss ----------------------------------------------------------------------------- 
-        pred_loc, pred_dim, pred_yaw = pred_dict['location'], pred_dict['dimension'], pred_dict['yaw']  # B x 3 # B x 3 # B x 1
-        gt_loc, gt_dim, gt_yaw = data_dict['locations'], data_dict['dimensions'], data_dict['yaws']     # B x 3 # B x 3 # B x 1
-        pred_loc, pred_dim, pred_yaw = pred_loc[has_label], pred_dim[has_label], pred_yaw[has_label]    # Bl x 3 # Bl x 3 # Bl x 1
-        gt_loc, gt_dim, gt_yaw = gt_loc[has_label], gt_dim[has_label], gt_yaw[has_label]                # Bl x 3 # Bl x 3 # Bl x 1
+        pred_loc, pred_dim, pred_yaw = pred_dict['location'], pred_dict['dimension'], pred_dict['yaw']  # B x 3     # B x 3 # B x 1
+        gt_loc, gt_dim, gt_yaw = data_dict['locations'], data_dict['dimensions'], data_dict['yaws']     # B x 3     # B x 3 # B x 1
+        pred_loc, pred_dim, pred_yaw = pred_loc[has_label], pred_dim[has_label], pred_yaw[has_label]    # Bl x 3    # Bl x 3 # Bl x 1
+        gt_loc, gt_dim, gt_yaw = gt_loc[has_label], gt_dim[has_label], gt_yaw[has_label]                # Bl x 3    # Bl x 3 # Bl x 1
         gt_boxes = torch.cat([gt_loc, gt_dim, gt_yaw], dim=-1)                                          # Bl x 7
         pred_boxes = torch.cat([pred_loc, pred_dim, pred_yaw], dim=-1)                                  # Bl x 7
         num_gt_samples = has_label.sum()
-        diff_yaw = torch.sin(pred_yaw - gt_yaw)                                                         # Bl x 1    # TODO Intuition as to why we need to get the sin of it
+        diff_yaw = torch.sin(pred_yaw - gt_yaw)                                                         # Bl x 1    # Intuition as to why we need to get the sin of it
         
-        if self.decouple_iou:
+        # Decoupling IoU can improve performance # Disabled by default
+        if self.decouple_iou:   
             l_iou, iou3d, purity, integrity, iou2d = cal_diou_3d(pred_boxes.unsqueeze(1), gt_boxes.unsqueeze(1), decouple_iou=self.decouple_iou)               # Bl x 1    # Bl x 1    # Bl x 1          
         else:
             l_iou, iou3d, iou2d = cal_diou_3d(pred_boxes.unsqueeze(1), gt_boxes.unsqueeze(1))
@@ -732,8 +734,9 @@ class MTrans(nn.Module):
         if self.unc_guided_loss or self.unc_guided_iou_loss:
             l_iou_unc = l_iou.clone()
 
+        # Other way of modeling uncertainty as laplace dist # Disabled by default
         if self.laplace_uncertainty:
-            if self.lapl_multi_unc:
+            if self.lapl_multi_unc: # Different uncertainties for each 3D box parameters
                 gt_boxes[:,6] = wrap_to_minus_pi_half_pi_half(gt_boxes[:,6])
                 lv_loc0, lv_loc1, lv_loc2, lv_dim0, lv_dim1, lv_dim2, lv_yaw = pred_dict['lapl_unc'][:,0].clamp(min=-10, max=0), \
                                                                                pred_dict['lapl_unc'][:,1].clamp(min=-10, max=0), \
@@ -759,11 +762,11 @@ class MTrans(nn.Module):
                 loss_dict['lapl_unc_h'] = ((torch.exp(lv_dim2)).abs().mean().item(), num_gt_samples, 'iou')
                 loss_dict['lapl_unc_rot'] = ((torch.exp(lv_yaw)).abs().mean().item(), num_gt_samples, 'iou')
             else:
-                # Only single uncertainty for each object
+                # Only single uncertainty for each 3D object
                 log_variance = pred_dict['lapl_unc'].clamp(min=-10, max=0).reshape(-1)
                 l_iou =  1.4142 * torch.exp(-log_variance) * l_iou + self.lapl_lambda * log_variance 
                 loss_dict['lapl_unc_checker'] = ((torch.exp(log_variance)).abs().mean().item(), num_gt_samples, 'iou')
-        elif self.ensemble:
+        elif self.ensemble: # Code associated with Deep Ensemble framework # Disabled by Default
             gt_boxes[:,6] = wrap_to_minus_pi_half_pi_half(gt_boxes[:,6])
 
             log_variance = pred_dict['sigmas']                                            #.clamp(min=-10, max=0)
@@ -786,11 +789,12 @@ class MTrans(nn.Module):
             loss_box = self.get_weighted_loss(l_iou, weights)
 
         # Loss for direction/ yaw angle                     # NOTE It did not use the predicted yaw
-        gt_dir = self.clamp_orientation_range(gt_yaw)                                                   # Bl x 1 # TODO What is the intuition in doing this? 
+        gt_dir = self.clamp_orientation_range(gt_yaw)                                                   # Bl x 1 # What is the intuition in doing this? 
         gt_dir = ((gt_dir >= -np.pi/2) * (gt_dir < np.pi/2)).long().squeeze(-1)                         # Bl
         pred_dir = pred_dict['direction'][has_label]  
         criterion_dir = torch.nn.CrossEntropyLoss(reduction='none')                                     # Bl x 2
         loss_dir = criterion_dir(pred_dir, gt_dir)          
+
 
         if self.unc_guided_loss:
             l_dir_unc = loss_dir.clone()
@@ -800,10 +804,11 @@ class MTrans(nn.Module):
         else:
             loss_dir = self.get_weighted_loss(loss_dir, weights)
 
+
         acc_dir = (pred_dir.argmax(dim=-1) == gt_dir).sum() / num_gt_samples
 
         # Loss for confidence
-        if self.decouple_iou:
+        if self.decouple_iou:   # Disabled by default
             pred_purity = pred_dict['purity'][has_label] 
             pred_integrity = pred_dict['integrity'][has_label]  
             confidence = pred_dict['conf'][has_label]  
@@ -832,9 +837,9 @@ class MTrans(nn.Module):
 
         #  --------------------------------------------------------------- 4. Evidential Regression Loss -------------------------------------------------------------------------
         if self.evi_uncertainty:
-            if self.evi_dim_only:
+            if self.evi_dim_only: # Only dimensions have uncertainty element
                 evidential_loss = evidential_regression_loss(gt_boxes[:,3:6], (pred_dim,) + pred_dict['box_uncertainty'], self.evi_lambda)
-            elif self.evi_loc_only:
+            elif self.evi_loc_only: # Only locations have uncertainty element
                 evidential_loss = evidential_regression_loss(gt_boxes[:,:3], (pred_loc,) + pred_dict['box_uncertainty'], self.evi_lambda)
             elif self.evi_dimloc_only:
                 if self.separate_heads:
@@ -866,8 +871,8 @@ class MTrans(nn.Module):
                 loss_dict['rot_loss'] = (rot_loss.item(), num_gt_samples, 'losses')
                 evidential_loss += rot_loss
             else:
-                # Rot_loss
-                if 'cos_sim' in self.yaw_loss:
+                # Rotation_loss
+                if 'cos_sim' in self.yaw_loss:  # Disabled by default
                     cosine_sim = torch.cosine_similarity(pred_yaw, gt_yaw, dim=-1)
                     rot_loss = 1 - torch.mean(cosine_sim)
                     
@@ -892,9 +897,9 @@ class MTrans(nn.Module):
                     evidential_loss_rot = evidential_regression_loss(gt_boxes[:,6], (pred_boxes[:,6],) + pred_dict['box_uncertainty'][6], self.evi_lambda)
                     evidential_loss = evidential_loss_loc0 + evidential_loss_loc1 + evidential_loss_loc2 + evidential_loss_dim0 + evidential_loss_dim1 + evidential_loss_dim2 + evidential_loss_rot
                 else:
-                    evidential_loss = evidential_regression_loss(gt_boxes, (pred_boxes,) + pred_dict['box_uncertainty'], self.evi_lambda, nll_weight = torch.tensor(self.nll_weight).float().cuda())
+                    evidential_loss = evidential_regression_loss(gt_boxes, (pred_boxes,) + pred_dict['box_uncertainty'], self.evi_lambda, nll_weight = torch.tensor(self.nll_weight).float().cuda())    # nll_weight is just a way of reweighting
 
-            if self.some_prints:
+            if self.some_prints:    # ignore
                 pass
                     
             # Calculate epistemic and aleatoric uncertainty
@@ -905,7 +910,7 @@ class MTrans(nn.Module):
                 aleatoric_unc = get_pred_evidential_aleatoric(pred_dict['box_uncertainty'], choose=self.choose_unc_idx)
                 epistemic_unc = get_pred_evidential_epistemic(pred_dict['box_uncertainty'])
 
-            # Calculate nu, alpha, beta
+            # Calculate nu, alpha, beta (evidential parameters)
             if not self.separate_heads:
                 v, alpha, beta = pred_dict['box_uncertainty']
             else:
@@ -924,7 +929,7 @@ class MTrans(nn.Module):
             loss_dict['alpha'] = (torch.sum(alpha).item(), num_gt_samples, 'unc')
             loss_dict['beta'] = (torch.sum(beta).item(), num_gt_samples, 'unc')
 
-            min_corr_req = 2
+            min_corr_req = 2    # Calculate Pearson Correlation
             if iou3d.shape[0] >= min_corr_req:                                          # else error during val or train when batch size==1
                 evi_iou3d_corr, _ = stats.pearsonr(iou3d.view(-1).cpu().detach().numpy(), aleatoric_unc.cpu().detach().numpy())   
                 evi_iou3d_corr_epis, _ = stats.pearsonr(iou3d.view(-1).cpu().detach().numpy(), epistemic_unc.cpu().detach().numpy())      
@@ -935,18 +940,18 @@ class MTrans(nn.Module):
                 loss_dict['evi_iou_corr_epis'] = (0, num_gt_samples, 'iou')
 
             # Option: High Uncertainty Regularization
-            if self.high_unc_reg: 
+            if self.high_unc_reg: # Disabled by Default
                 inner = pred_boxes[:,:6] - aleatoric_unc
                 outer = pred_boxes[:,:6] - aleatoric_unc
                 l_reg_un = torch.sqrt(torch.square(gt_boxes[:,:6] - pred_boxes[:,:6]))
                 l_reg_un += torch.sqrt(torch.square(gt_boxes[:,:6] - inner))
                 l_reg_un += torch.sqrt(torch.square(gt_boxes[:,:6] - outer))
 
-            # Option: From EDL with Multitask Learning paper
-            if self.l_mse:
+            # Option: From EDL with Multitask Learning paper "Improving evidential deep learning via multi-task learning"
+            if self.l_mse:  # Disabled by Default
                 l_mse = torch.tensor(0).float().cuda()
                 
-                # Helbert version
+                # HP version
                 # U_v = ((beta * (v + 1)) / (alpha * v)).detach()
                 # U_alpha = (((2*beta*(1+v))/v) * torch.exp(torch.digamma(alpha + 0.50) - torch.digamma(alpha)- 1)).detach()
                 # thresh = {}
@@ -1037,6 +1042,7 @@ class MTrans(nn.Module):
         if self.inc_ldir: 
             if self.unc_guided_loss: loss += ((2 * v_resc + alpha_resc - 1).mean(1) * l_dir_unc.reshape(-1) - torch.log(2 * v_resc + alpha_resc - 1).mean(1)).mean() 
             else: loss += loss_dir
+            
         if self.evi_uncertainty:
             loss += self.evi_loss_weight * evidential_loss  
         if self.decouple_iou:

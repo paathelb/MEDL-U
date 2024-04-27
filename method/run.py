@@ -541,15 +541,17 @@ class runner(torch.nn.Module):
 
             if self.evi_uncertainty:
                 # Append values
-                iou3d = np.append(iou3d, iou3d_addl)
-                evi_unc = np.append(evi_unc, evi_unc_addl)
-                evi_unc_epis = np.append(evi_unc_epis, evi_unc_addl_epistemic)
+                iou3d = np.append(iou3d, iou3d_addl)        # 3D IoU
+                evi_unc = np.append(evi_unc, evi_unc_addl)  # Aleatoric Uncertainty
+                evi_unc_epis = np.append(evi_unc_epis, evi_unc_addl_epistemic)  # Epistemic Uncertainty
+                # Evidential Parameters
                 try: v = np.concatenate((v, v_addl), axis=0)
                 except: v = v_addl
                 try: alpha = np.concatenate((alpha, alpha_addl), axis=0)
                 except: alpha = alpha_addl
                 try: beta = np.concatenate((beta, beta_addl), axis=0)
                 except: beta = beta_addl
+                # Predicted and GT Boxes
                 try: pred_boxes_all = np.concatenate((pred_boxes_all, pred_boxes), axis=0)
                 except: pred_boxes_all = pred_boxes
                 try: gt_boxes_all = np.concatenate((gt_boxes_all, gt_boxes), axis=0)

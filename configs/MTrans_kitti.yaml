@@ -1,17 +1,17 @@
 ---
 data_root:      './data/kitti_detect'
-home_path:      '/home/hpaat/my_exp/MTrans-evidential'
-val_link_path:  '/home/hpaat/pcdet/data/nuscenes/kitti_ver/val/val_link.txt'
+home_path:      '/home/hpaat/my_exp/MTrans-evidential'            # Change this directory to your specified path
+val_link_path:  '/home/hpaat/pcdet/data/nuscenes/kitti_ver/val/val_link.txt'  # ignore
 experiment_name: "DELETE"
 init_checkpoint: null
-random_seed: 7489                 #7489                                         
+random_seed: 7489               #7489                                         
 DEBUG: false
 gen_label: false                                                  # Set this to "true" for pseudo-label generation. Note that the best_model.pt should be saved in ckpt folder
-label_dir: pseudo_label_main                          # Indicate path name for pseudolabels if gen_label is true
+label_dir: pseudo_label_main                                      # Indicate path name for pseudolabels if gen_label is true
 dataset: KITTI   
 dist: false                                                       # added/changed/modified by Helbert PAAT  
 is_dp: false                                                      # added/changed/modified by Helbert PAAT  
-prog_metric_dir: './output/DELETE/training_hist.txt'    
+prog_metric_dir: './output/DELETE/training_hist.txt'              # inside the 'experiment_name' folder
 gen_pseudo_from_external: false
 gen_pseudo_from_external_path: null
 save_det_annos: true          # pseudo, for KITTI direct evaluation
@@ -27,7 +27,7 @@ TRAIN_CONFIG:
   epoches_per_eval: 5   #1              # Changes made by Helbert
   ckpt_save_interval: 20
   val_see_perf_limit: 2000
-  eval_begin: 100                       # 100       # 550     Changes made by Helbert
+  eval_begin: 100                       # 100    # 550     Changes made by Helbert
 
 DATASET_CONFIG:
   TRAIN_SET:
@@ -60,7 +60,7 @@ DATALOADER_CONFIG:
     unsupervise_batch_size: 0             # change to 0 for the pseudo-label generation in the end of MTrans
     num_workers: 8               
     pin_memory: true
-    shuffle: true                        # For pseudo label generation, change to 'false'    # Set true for training
+    shuffle: true                         # For pseudo label generation, change to 'false'    # Set true for training
     shuffle_for_unlabeled: false          # changed/added by Helbert PAAT
     random_seed: 5421
     drop_last: false
@@ -84,7 +84,7 @@ MODEL_CONFIG:
   box_loss_weight: 5
   evi_uncertainty:                                  # evidential parameters
     evi_neurons: 512
-    setting: true                                  # Changes - Helbert
+    setting: true                                   # Changes - Helbert
     loss_weight: 2                                  # Changes - Helbert
     evi_lambda: 0                                   # Changes - Helbert
 
@@ -111,6 +111,7 @@ MODEL_CONFIG:
 
     nll_weight: [1,1,1,1,1,1,1]                     # default [1,1,1,1,1,1,1]
 
+  # For Deep Ensemble and MCDO Settings
   ensemble: false
   ensemble_lambda: 0.50
   ensemble_dropout: 0.30                            # 0.20 is typical
