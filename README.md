@@ -50,10 +50,6 @@ This notebook provides detailed instructions and code for processing uncertainti
 ## References
 This work is based on the MTrans framework. We extend our gratitude to the authors for their open-source code: [MTrans GitHub Repository](https://github.com/Cliu2/MTrans).
 
-Additionally, relevant literature that informs this work includes:
-- **Efficient & Exact Non-Linear Post-Processing and Calibration**: This paper discusses methods for robustly localizing objects in real-world environments by addressing localization uncertainty through efficient propagation of Gaussian distributions. [Read more](https://arxiv.org/abs/2306.08981).
-- **Uncertainty-Aware Depth Network for Visual Inertial Odometry**: This study demonstrates improved performance in depth estimation using uncertainty-aware methods on the KITTI dataset. [Read more](https://www.mdpi.com/1424-8220/24/20/6665).
-
 ## TODO
 - [ ] Add additional features or improvements here.
 - [ ] Update documentation as necessary.
