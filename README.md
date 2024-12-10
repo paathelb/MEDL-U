@@ -10,14 +10,15 @@ The KITTI 3D detection dataset can be downloaded from the official website: [lin
 Modify the config at /configs/MTrans_kitti.yaml
 
 To train a MTrans with the KITTI dataset. Simply run:
-> python train.py --cfg_file configs/MTrans_kitti.yaml
+
+```python train.py --cfg_file configs/MTrans_kitti.yaml```
 
 ## Pretrained Model
 You can download the pretrained model here: [link](https://drive.google.com/file/d/1-tzkSk0CdMg9B95b-i4eaTcpahCF3EG8/view?usp=sharing)
 
 ## Generate Pseudolabels
 To generate pseudolabels, make sure that the 'best_model.pt' is saved in the experiment_name/ckpt folder. Simply run:
-> python train.py --cfg_file configs/MTrans_kitti_gen_label.yaml
+```python train.py --cfg_file configs/MTrans_kitti_gen_label.yaml```
 
 ## Postprocess Uncertainties
 Details on the postprocessing of uncertainties and integration with KITTI infos and dbinfos files can be found here: /small_experiments/glenet_weights_statistics.ipynb
