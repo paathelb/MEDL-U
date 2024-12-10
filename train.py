@@ -448,12 +448,10 @@ def get_boxes_lidar_nuscenes_format(line, frames, lbl):
 
     return np.concatenate((box.center, box.wlh[[1,0,2]], np.array([quaternion_yaw(box.orientation)]), box.velocity[:2]), axis=0).reshape(-1,9)    # Note: nuscenes_boxes_lidar_pred is lwh but nuscenes_lidar is wlh
 
-
 def main(rank, num_gpus, cfg, cfg_path):
     import pdb; pdb.set_trace()
     torch.cuda.set_device(rank)
 
-    # NOTE The DDP training is not working.
     if cfg.dist:
         torch.distributed.init_process_group(backend='nccl', rank=rank, world_size=num_gpus, init_method='env://')
 
@@ -521,10 +519,10 @@ def main(rank, num_gpus, cfg, cfg_path):
     # Build the Model based from MTrans
     model = MTrans(cfg.MODEL_CONFIG)
     model.cuda(rank)
-    if cfg.dist:    # ignore this
+    if cfg.dist:        # ignore this
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, find_unused_parameters=True, device_ids=[rank])
-    elif cfg.is_dp: # ignore this
+    elif cfg.is_dp:     # ignore this
         assert cfg.dist is False
         model = torch.nn.DataParallel(model)
 
@@ -552,7 +550,7 @@ def main(rank, num_gpus, cfg, cfg_path):
     run = runner(cfg)
 
     # NOTE eval function has function to generate the pseudo labels
-    if cfg.gen_label:   # evaluate and generate the pseudolabels
+    if cfg.gen_label:           # evaluate and generate the pseudolabels
         # Generate pseudo labels for entire training set
         training_score = run.eval(cfg, model, training_loader_for_gen_label, counter, histo_counter, start_epoch-1, writer, rank, lbl="train", gen_label_prints=True)     # Changes made by Helbert
         import pdb; pdb.set_trace() 
@@ -567,11 +565,10 @@ def main(rank, num_gpus, cfg, cfg_path):
     writer.flush()
     writer.close()
 
-    if cfg.dist:    # ignore
+    if cfg.dist:            # ignore
         torch.distributed.destroy_process_group()
 
 if __name__ == '__main__':
-    
     num_gpus = torch.cuda.device_count()
     
     parser = argparse.ArgumentParser(description='training arguments')
@@ -579,6 +576,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))
 
+    # NOTE The DDP training is not working.
     if cfg.dist:
         # Added multi-gpu training with MultipleProcesses by Helbert PAAT
         os.environ['MASTER_ADDR'] = 'localhost'
@@ -588,9 +586,9 @@ if __name__ == '__main__':
     print(cfg.experiment_name)
     print("==========================")
 
-    if cfg.dist:        # ignore
+    if cfg.dist:                # ignore
         torch.multiprocessing.spawn(main, args=(num_gpus, cfg, args.cfg_file), nprocs=num_gpus, join=True) # modified/changed by Helbert PAAT to include multi-gpu feature
-    elif cfg.is_dp:     # ignore
+    elif cfg.is_dp:             # ignore
         assert cfg.dist is False
         main(0, num_gpus, cfg, args.cfg_file)
     else:
